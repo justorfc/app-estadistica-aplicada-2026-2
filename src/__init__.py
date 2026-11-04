@@ -1,22 +1,38 @@
 """
-Módulo principal: Utilidades y funciones compartidas para la app de Estadística Aplicada.
+Paquete src: Módulos compartidos para la app de Estadística Aplicada.
 
-Este paquete contiene:
-- utilidades.py: Funciones auxiliares generales (carga de datos, formateo, etc.)
-- datos.py: Estadística descriptiva y análisis de datos
-- eda.py: Análisis exploratorio de datos
-- distribuciones.py: Ajuste de modelos de distribución
-- regresion.py: Análisis de regresión
-- series_tiempo.py: Descomposición y pronóstico de series de tiempo
+Submódulos:
+- datos.py: Carga CSV, metadatos, tarjeta estudiante
+- eda.py: Análisis exploratorio (próximamente)
+- distribuciones.py: Ajuste de distribuciones (próximamente)
+- regresion.py: Regresión lineal (próximamente)
+- series_tiempo.py: Series de tiempo (próximamente)
+
+Uso:
+    from datos import cargar_csv, cargar_metadatos, tarjeta_estudiante
+    df = cargar_csv('parcelas.csv')
+    metadatos = cargar_metadatos()
+    tarjeta_estudiante('sidebar')
 """
 
 __version__ = "0.1.0"
-__author__ = "Tutor de Estadística Aplicada"
+__author__ = "Tutor Estadística - Ingeniería Agrícola, Unisucre"
 
-# Importar funciones comunes para facilitar acceso
-try:
-    from .utilidades import cargar_datos, formatear_numero
-    __all__ = ['cargar_datos', 'formatear_numero']
-except ImportError:
-    # Si utilidades.py no existe aún, no fallar
-    pass
+# Exports comunes desde datos.py
+from .datos import (
+    cargar_csv,
+    cargar_metadatos,
+    tarjeta_estudiante,
+    obtener_ruta_datos,
+    formatear_numero,
+    resumen_estadistico
+)
+
+__all__ = [
+    'cargar_csv',
+    'cargar_metadatos',
+    'tarjeta_estudiante',
+    'obtener_ruta_datos',
+    'formatear_numero',
+    'resumen_estadistico'
+]
