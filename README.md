@@ -1,0 +1,1 @@
+# app-estadistica-aplicada-2026-2
