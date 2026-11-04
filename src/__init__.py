@@ -25,7 +25,9 @@ from .datos import (
     tarjeta_estudiante,
     obtener_ruta_datos,
     formatear_numero,
-    resumen_estadistico
+    resumen_estadistico,
+    tipos_de_variables,
+    valores_faltantes
 )
 
 __all__ = [
@@ -34,5 +36,7 @@ __all__ = [
     'tarjeta_estudiante',
     'obtener_ruta_datos',
     'formatear_numero',
-    'resumen_estadistico'
+    'resumen_estadistico',
+    'tipos_de_variables',
+    'valores_faltantes'
 ]

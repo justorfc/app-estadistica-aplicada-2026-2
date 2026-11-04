@@ -278,3 +278,122 @@ def resumen_estadistico(df: pd.DataFrame, columnas_numericas: list = None) -> pd
             resumen[col] = resumen[col].astype(int)
     
     return resumen
+
+
+def tipos_de_variables(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Clasifica cada variable del DataFrame según su tipo de dato y clase estadística.
+    
+    Clasificación:
+    - CUALITATIVA NOMINAL: texto, sin orden (ej: color, especie, suelo)
+    - CUALITATIVA ORDINAL: texto con orden implícito (ej: bajo/medio/alto)
+    - CUANTITATIVA DISCRETA: números enteros (ej: parcela ID, cantidad)
+    - CUANTITATIVA CONTINUA: números reales (ej: rendimiento, precipitación)
+    
+    Heurística de detección:
+    - Si es datetime64: "Temporal"
+    - Si es integer, único < 10, y rango pequeño: "Cualitativa Ordinal"
+    - Si es integer: "Cuantitativa Discreta"
+    - Si es float: "Cuantitativa Continua"
+    - Si es object/string: "Cualitativa Nominal"
+    
+    Args:
+        df (pd.DataFrame): DataFrame a clasificar
+    
+    Returns:
+        pd.DataFrame: Tabla con columnas:
+            - Variable: nombre de la columna
+            - Tipo_de_Dato: tipo nativo (int64, float64, object, datetime64, etc.)
+            - Clasificacion_Estadistica: categoría estadística (Temporal, Cualitativa, Cuantitativa)
+            - Valores_Unicos: número de valores distintos
+            - Ejemplo: primer valor (o primeros 3 si es texto)
+    
+    Ejemplo:
+        >>> df = pd.DataFrame({'edad': [25, 30, 35], 'nombre': ['Ana', 'Bob', 'Carlos']})
+        >>> tipos_de_variables(df)
+                 Variable Tipo_de_Dato         Clasificacion_Estadistica  Valores_Unicos Ejemplo
+        0  edad           int64               Cuantitativa Discreta       3               25
+        1  nombre         object              Cualitativa Nominal          3               Ana, Bob, Carlos
+    """
+    resultados = []
+    
+    for col in df.columns:
+        serie = df[col]
+        tipo_dato = str(serie.dtype)
+        n_unicos = serie.nunique()
+        
+        # Clasificación basada en tipo de dato
+        # Nota: pandas >= 2.0 usa 'str' en lugar de 'object' para texto
+        if 'datetime' in tipo_dato or 'date' in tipo_dato.lower():
+            clasificacion = "Temporal"
+        elif 'object' in tipo_dato or 'string' in tipo_dato or tipo_dato == 'str':
+            # Texto: siempre cualitativa nominal (sin jerarquía)
+            clasificacion = "Cualitativa Nominal"
+        elif 'int' in tipo_dato:
+            # Enteros: discretos
+            clasificacion = "Cuantitativa Discreta"
+        elif 'float' in tipo_dato:
+            # Flotantes: continuos
+            clasificacion = "Cuantitativa Continua"
+        else:
+            clasificacion = "Otra"
+        
+        # Ejemplo: primeros valores o resumen
+        if 'object' in tipo_dato or 'string' in tipo_dato or tipo_dato == 'str':
+            ejemplo = ", ".join(serie.dropna().head(3).astype(str).values)
+        else:
+            ejemplo = str(serie.dropna().iloc[0]) if len(serie.dropna()) > 0 else "N/D"
+        
+        resultados.append({
+            'Variable': col,
+            'Tipo_de_Dato': tipo_dato,
+            'Clasificacion': clasificacion,
+            'Valores_Unicos': n_unicos,
+            'Ejemplo': ejemplo
+        })
+    
+    return pd.DataFrame(resultados)
+
+
+def valores_faltantes(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Analiza valores faltantes (NaN, None) en cada variable del DataFrame.
+    
+    Propósito: Identificar qué variables tienen datos incompletos, cuántos faltan
+    y en qué proporción. Datos faltantes pueden sesgar análisis estadísticos.
+    
+    Args:
+        df (pd.DataFrame): DataFrame a analizar
+    
+    Returns:
+        pd.DataFrame: Tabla con columnas:
+            - Variable: nombre de la columna
+            - Total: número de filas del DataFrame
+            - Faltantes: número de valores NaN/None
+            - Porcentaje: % de faltantes (format: "XX.X%")
+            - Completos: número de valores no faltantes
+    
+    Ejemplo:
+        >>> df = pd.DataFrame({'edad': [25, None, 35], 'nombre': ['Ana', 'Bob', None]})
+        >>> valores_faltantes(df)
+              Variable  Total  Faltantes  Porcentaje  Completos
+        0  edad           3      1        33.3%       2
+        1  nombre         3      1        33.3%       2
+    """
+    total_filas = len(df)
+    resultados = []
+    
+    for col in df.columns:
+        n_faltantes = df[col].isnull().sum()
+        n_completos = total_filas - n_faltantes
+        porcentaje = (n_faltantes / total_filas * 100) if total_filas > 0 else 0.0
+        
+        resultados.append({
+            'Variable': col,
+            'Total': total_filas,
+            'Faltantes': n_faltantes,
+            'Porcentaje': f"{porcentaje:.1f}%",
+            'Completos': n_completos
+        })
+    
+    return pd.DataFrame(resultados)
