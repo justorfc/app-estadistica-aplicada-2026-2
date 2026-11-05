@@ -644,12 +644,198 @@ st.write(f"""
 """)
 
 # ============================================================================
+# 7. INGENIERÍA: MODELOS DE SECADO (AICc)
+# ============================================================================
+
+st.header("7️⃣ Ingeniería: Modelos de Secado (AICc)")
+
+st.info("""
+Esta sección aplica criterios de información (AICc) para seleccionar el mejor
+modelo semiempírico de secado. Ilustra la **navaja de Ockham**: no compres una
+secadora más compleja si la sencilla seca igual.
+""")
+
+# Importar módulo de curvas
+from src.modelos_curvas import tabla_modelos, MODELOS_SECADO
+
+# Cargar datos de secado
+try:
+    df_secado = pd.read_csv('datos/secado.csv')
+    tiempo_min = df_secado['tiempo_min'].values
+    MR_secado = df_secado['MR'].values
+    
+    # Convertir tiempo a horas
+    t_secado = tiempo_min / 60.0
+    
+    st.subheader("Datos de Secado Observados")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        # Gráfico de datos observados
+        fig, ax = plt.subplots(figsize=(12, 5))
+        ax.scatter(t_secado, MR_secado, s=100, alpha=0.7, edgecolor='navy', 
+                   color='steelblue', label='Datos observados')
+        ax.set_xlabel('Tiempo (h)', fontsize=11, fontweight='bold')
+        ax.set_ylabel('Ratio de Humedad (MR)', fontsize=11, fontweight='bold')
+        ax.set_title('Curva de Secado Observada', fontsize=12, fontweight='bold')
+        ax.grid(alpha=0.3)
+        ax.legend(fontsize=10)
+        plt.tight_layout()
+        st.pyplot(fig)
+    
+    with col2:
+        st.subheader("Resumen")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.metric("N (observaciones)", len(t_secado))
+            st.metric("Tiempo inicial (h)", f"{t_secado[0]:.2f}")
+        with col_b:
+            st.metric("Tiempo final (h)", f"{t_secado[-1]:.2f}")
+            st.metric("MR inicial", f"{MR_secado[0]:.4f}")
+    
+    # Ajustar tabla de modelos
+    st.subheader("Ajuste de 5 Modelos Semiempíricos")
+    
+    tabla_sec = tabla_modelos(t_secado, MR_secado)
+    
+    # Tabla comparativa
+    st.write("**Tabla de Modelos (ordenada por AICc):**")
+    
+    tabla_sec_display = tabla_sec[['Modelo', 'Parámetros', 'k', 'R²', 'RMSE', 
+                                     'AICc', 'ΔAICc', 'Interpretación']].copy()
+    
+    for col in ['R²', 'RMSE', 'AICc', 'ΔAICc']:
+        tabla_sec_display[col] = tabla_sec_display[col].apply(lambda x: f"{x:.4f}")
+    
+    st.dataframe(tabla_sec_display, use_container_width=True, hide_index=True)
+    
+    # Gráfico de ΔAICc
+    fig, ax = plt.subplots(figsize=(10, 5))
+    colores_daic_sec = ['green' if x < 2 else 'yellow' if x < 7 else 'red' 
+                        for x in tabla_sec['ΔAICc'].values]
+    ax.bar(tabla_sec['Modelo'], tabla_sec['ΔAICc'], color=colores_daic_sec, 
+           edgecolor='black', alpha=0.7)
+    ax.axhline(y=2, color='orange', linestyle='--', linewidth=1.5, alpha=0.7, label='ΔAICc = 2')
+    ax.axhline(y=7, color='red', linestyle='--', linewidth=1.5, alpha=0.7, label='ΔAICc = 7')
+    ax.set_ylabel('ΔAICc = AICc - AICc_mín', fontsize=11, fontweight='bold')
+    ax.set_title('Comparación de Modelos de Secado', fontsize=12, fontweight='bold')
+    ax.legend(fontsize=10)
+    ax.grid(axis='y', alpha=0.3)
+    plt.xticks(rotation=45, ha='right')
+    plt.tight_layout()
+    st.pyplot(fig)
+    
+    # Curvas ajustadas
+    st.subheader("Curvas Ajustadas de Cada Modelo")
+    
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    # Datos observados
+    ax.scatter(t_secado, MR_secado, s=80, alpha=0.8, edgecolor='navy', 
+               color='steelblue', label='Observados', zorder=3)
+    
+    # Curvas ajustadas
+    t_suave = np.linspace(t_secado.min(), t_secado.max(), 200)
+    
+    colores_lineas = ['red', 'green', 'orange', 'purple', 'brown']
+    
+    for idx, (_, row) in enumerate(tabla_sec.iterrows()):
+        modelo_nombre = row['Modelo']
+        params = row['params_tuple']
+        modelo_info = MODELOS_SECADO[modelo_nombre]
+        func = modelo_info['func']
+        
+        try:
+            MR_suave = func(t_suave, *params)
+            ax.plot(t_suave, MR_suave, linewidth=2.5, 
+                   label=f"{modelo_nombre} (ΔAICc={row['ΔAICc']:.2f})",
+                   color=colores_lineas[idx], alpha=0.8)
+        except:
+            pass
+    
+    ax.set_xlabel('Tiempo (h)', fontsize=11, fontweight='bold')
+    ax.set_ylabel('Ratio de Humedad (MR)', fontsize=11, fontweight='bold')
+    ax.set_title('Curvas Ajustadas: Comparación de Modelos', fontsize=12, fontweight='bold')
+    ax.legend(loc='best', fontsize=9)
+    ax.grid(alpha=0.3)
+    ax.set_ylim([-0.05, 1.1])
+    plt.tight_layout()
+    st.pyplot(fig)
+    
+    # Gráfico de residuos del mejor modelo
+    st.subheader("Análisis de Residuos del Mejor Modelo")
+    
+    mejor_modelo_sec = tabla_sec.iloc[0]['Modelo']
+    mejor_params_sec = tabla_sec.iloc[0]['params_tuple']
+    mejor_residuos = tabla_sec.iloc[0]['residuos']
+    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
+    
+    # Residuos vs valores ajustados
+    MR_ajust_mejor = MODELOS_SECADO[mejor_modelo_sec]['func'](t_secado, *mejor_params_sec)
+    ax1.scatter(MR_ajust_mejor, mejor_residuos, s=80, alpha=0.7, 
+               edgecolor='navy', color='steelblue')
+    ax1.axhline(y=0, color='red', linestyle='--', linewidth=2)
+    ax1.set_xlabel('Valores Ajustados', fontsize=11, fontweight='bold')
+    ax1.set_ylabel('Residuos', fontsize=11, fontweight='bold')
+    ax1.set_title(f'Residuos vs Ajustados ({mejor_modelo_sec})', fontsize=11, fontweight='bold')
+    ax1.grid(alpha=0.3)
+    
+    # Histograma de residuos
+    ax2.hist(mejor_residuos, bins=8, edgecolor='black', alpha=0.7, color='steelblue')
+    ax2.axvline(x=0, color='red', linestyle='--', linewidth=2, label='Media = 0')
+    ax2.set_xlabel('Residuos', fontsize=11, fontweight='bold')
+    ax2.set_ylabel('Frecuencia', fontsize=11, fontweight='bold')
+    ax2.set_title('Distribución de Residuos', fontsize=11, fontweight='bold')
+    ax2.legend(fontsize=10)
+    ax2.grid(axis='y', alpha=0.3)
+    
+    plt.tight_layout()
+    st.pyplot(fig)
+    
+    # Recomendación
+    st.subheader("🎯 Recomendación: Navaja de Ockham")
+    
+    mejor_aicc = tabla_sec.iloc[0]['AICc']
+    mejor_r2 = tabla_sec.iloc[0]['R²']
+    mejor_k = tabla_sec.iloc[0]['k']
+    segundo_k = tabla_sec.iloc[1]['k'] if len(tabla_sec) > 1 else mejor_k
+    segundo_daic = tabla_sec.iloc[1]['ΔAICc'] if len(tabla_sec) > 1 else np.inf
+    
+    st.success(f"""
+    ✅ **Modelo Recomendado: {mejor_modelo_sec}**
+    
+    - **AICc = {mejor_aicc:.2f}** (mejor modelo)
+    - **R² = {mejor_r2:.4f}** (excelente ajuste)
+    - **Parámetros: {mejor_k}** (simplicidad)
+    
+    **¿Por qué AICc castiga parámetros extra?**
+    
+    El AICc implementa la **navaja de Ockham**: entre dos modelos con ajuste similar,
+    elige el más simple. Analógicamente:
+    
+    - **Secadora sencilla (Lewis, k=1 parámetro)**: Seca bien, bajo costo, mantenimiento simple.
+    - **Secadora compleja (Dos Términos, k=4 parámetros)**: Seca bien, alto costo, difícil de operar.
+    
+    Si ambas secan igual, ¿por qué comprar la compleja?
+    
+    La fórmula AICc = AIC + 2k(k+1)/(n-k-1) penaliza k extra. Así, un modelo con
+    más parámetros **solo** se prefiere si mejora **significativamente** el ajuste
+    (ΔAICc > 10). Aquí, {mejor_modelo_sec} es óptimo con {mejor_k} parámetro(s),
+    mientras que modelos más complejos no justifican su costo.
+    """)
+    
+except Exception as e:
+    st.error(f"Error cargando datos de secado: {e}")
+
+# ============================================================================
 # FOOTER
 # ============================================================================
 
 st.markdown("---")
 st.markdown("""
-**Módulo de Distribuciones de Probabilidad**  
-Análisis estadístico de máximos anuales de precipitación.  
+**Módulo de Distribuciones de Probabilidad e Ingeniería de Secado**  
+Análisis estadístico de máximos anuales de precipitación y modelado de procesos de secado.  
 *Instrumento didáctico para Estadística Aplicada - Ingeniería Agrícola*
 """)
