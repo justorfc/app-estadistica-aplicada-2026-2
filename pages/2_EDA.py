@@ -22,6 +22,13 @@ sys.path.insert(0, str(ruta_src))
 
 from datos import tarjeta_estudiante
 from eda import resumen_numerico, vallas_tukey, tabla_frecuencias
+from validacion import (
+    validar_archivo_cargado,
+    validar_columnas_seleccionadas,
+    validar_datos_faltantes,
+    limpiar_datos
+)
+from exportar import botones_descarga
 
 # ============================================================================
 # Configuración
@@ -49,6 +56,16 @@ def cargar_datos():
     return df_parcelas, df_muestra
 
 df_parcelas, df_muestra = cargar_datos()
+
+# ============================================================================
+# Validaciones
+# ============================================================================
+
+if not validar_archivo_cargado(df_parcelas):
+    st.stop()
+
+# Limpiar datos faltantes
+df_parcelas = limpiar_datos(df_parcelas, "EDA")
 
 # ============================================================================
 # Barra lateral: Filtros
