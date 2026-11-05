@@ -304,9 +304,9 @@ def metricas(real: pd.Series, pronostico: pd.Series) -> Dict[str, float]:
     >>> metr = metricas(validacion, pronostico_ingenuo)
     >>> print(f"MAE: {metr['MAE']:.2f}")
     """
-    # Asegurar que tienen el mismo índice para comparación
-    real_vals = real.values
-    pron_vals = pronostico.values
+    # Convertir a arrays NumPy si son Series (manejar ambos casos)
+    real_vals = real.values if hasattr(real, 'values') else real
+    pron_vals = pronostico.values if hasattr(pronostico, 'values') else pronostico
     
     # Errores (residuos)
     errores = real_vals - pron_vals
