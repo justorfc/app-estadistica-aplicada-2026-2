@@ -457,7 +457,9 @@ def cuantil_retorno(nombre, params, T):
     F = 1 - 1 / np.asarray(T)
     
     if nombre in ['Lognormal', 'Gamma', 'Weibull']:
-        x_T = dist.ppf(F, params[0], loc=0, scale=params[1])
+        # Para estas distribuciones, loc está fijo en 0, así que:
+        # params = (shape, loc=0, scale) -> usamos params[0] y params[2]
+        x_T = dist.ppf(F, params[0], loc=0, scale=params[2])
     else:
         x_T = dist.ppf(F, *params)
     
