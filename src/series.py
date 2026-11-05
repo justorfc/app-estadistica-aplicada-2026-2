@@ -408,8 +408,165 @@ def concurso_referencia(ruta_muestra24: str = None) -> pd.DataFrame:
 
 
 # ============================================================================
-# BLOQUE PRINCIPAL
+# 8. AUTOTS: PRONÓSTICO AUTOMÁTICO CON SELECCIÓN GENÉTICA
 # ============================================================================
+
+def ejecutar_autots(
+    serie: pd.Series,
+    horizonte: int,
+    model_list: str = "superfast",
+    generaciones: int = 5,
+    validaciones: int = 2,
+    intervalo: float = 0.9,
+    semilla: int = None
+) -> Dict:
+    """
+    Ejecuta AutoTS para encontrar automáticamente el mejor modelo de pronóstico.
+    
+    Analogía: Como un ensayo de evaluación de variedades agrícolas donde:
+    - Las "generaciones" son ciclos de siembra y selección
+    - Los "modelos" son diferentes variedades de cultivo
+    - Las "validaciones" son cosechas de prueba (backtesting)
+    - El "intervalo de confianza" es el rango de rendimiento esperado
+    - El "ensemble" (mezcla) es usar múltiples variedades juntas
+    
+    AutoTS evalúa automáticamente cientos de modelos (ARIMA, Prophet, TBATS, etc.)
+    en múltiples "generaciones" (iteraciones) y retiene los mejores según
+    validación hacia atrás (backwards), mejorando progresivamente.
+    
+    Parámetros
+    ----------
+    serie : pd.Series
+        Serie de tiempo con índice de fechas (frecuencia mensual)
+    horizonte : int
+        Número de meses a pronosticar en el futuro
+    model_list : str, default "superfast"
+        Conjunto de modelos a evaluar ("superfast", "fast", "default", etc.)
+    generaciones : int, default 5
+        Número de iteraciones de evolución/selección (más = mejor pero más lento)
+    validaciones : int, default 2
+        Número de períodos de validación hacia atrás (backtesting)
+    intervalo : float, default 0.9
+        Nivel de confianza para límites (0.9 = 90%, 0.95 = 95%)
+    semilla : int, optional
+        Semilla para reproducibilidad
+    
+    Retorna
+    -------
+    dict
+        Diccionario con claves:
+        - 'pronostico': DataFrame con fecha, pronostico_mm, limite_inferior_mm, limite_superior_mm
+        - 'modelo_nombre': nombre del mejor modelo
+        - 'modelo_params': parámetros del mejor modelo
+        - 'modelo_transformaciones': transformaciones aplicadas
+        - 'top_10_modelos': DataFrame con top 10 modelos (Model, smape, mae, rmse, Score)
+        - 'objeto_autots': objeto AutoTS completo para análisis posterior
+    
+    Ejemplo
+    -------
+    >>> resultado = ejecutar_autots(serie_precip, horizonte=12, generaciones=3)
+    >>> print(resultado['modelo_nombre'])
+    >>> print(resultado['top_10_modelos'])
+    """
+    # Importar AutoTS (librería de pronóstico automático)
+    from autots import AutoTS
+    
+    # Validar entrada
+    if len(serie) < 24:
+        raise ValueError("Serie debe tener al menos 24 observaciones para AutoTS")
+    
+    # Configurar semilla para reproducibilidad
+    if semilla is not None:
+        np.random.seed(semilla)
+    
+    # -------- CREAR MODELO AUTOTS --------
+    # AutoTS es como un sistema automático de evaluación de variedades:
+    # - frequency="MS": datos mensuales (Month Start)
+    # - max_generaciones: ciclos de selección (cada generación evalúa y mejora)
+    # - num_validaciones: cuántos períodos "hacia atrás" se valida (backtesting)
+    # - intervalo: rango de confianza para límites de pronóstico
+    # - model_list: conjunto de modelos candidatos ("superfast" = quick & good)
+    # - ensemble: None = no mezclar modelos, None = usar solo el mejor
+    # - transformer_list: "superfast" = transformaciones rápidas (log, detrend)
+    # - validation_method: "backwards" = validar hacia atrás (como pruebas históricas)
+    # - no_negatives: True = no permitir pronósticos negativos (para precipitación)
+    # - n_jobs: 1 = usar 1 procesador (más = paralelización)
+    # - verbose: 0 = silencioso, no imprimir progreso
+    
+    autots_modelo = AutoTS(
+        forecast_length=horizonte,      # Horizonte de pronóstico
+        frequency="MS",                 # Frecuencia: Month Start (mensual)
+        max_generations=generaciones,   # Número de "generaciones" de selección
+        num_validations=validaciones,   # Número de validaciones hacia atrás
+        prediction_interval=intervalo,  # Nivel de confianza (e.g., 0.9 = 90%)
+        model_list=model_list,          # Conjunto de modelos: "superfast"
+        ensemble=None,                  # No usar ensemble (solo mejor modelo)
+        transformer_list="superfast",   # Transformaciones rápidas
+        validation_method="backwards",  # Método: validación hacia atrás
+        no_negatives=True,              # No permitir valores negativos
+        random_seed=semilla             # Semilla para reproducibilidad
+    )
+    
+    # -------- ENTRENAR AUTOTS --------
+    # Convertir serie a DataFrame (AutoTS lo requiere)
+    datos_entrada = pd.DataFrame({
+        'valor': serie.values
+    }, index=serie.index)
+    
+    # Ajustar AutoTS: evalúa y selecciona modelos en múltiples generaciones
+    # (Como un proceso de selección natural: generación → evaluación → mejor)
+    autots_modelo.fit(datos_entrada)
+    
+    # -------- OBTENER MEJOR MODELO --------
+    # Después de "generaciones" de evolución, tenemos el mejor modelo
+    mejor_modelo = autots_modelo.model
+    nombre_mejor = autots_modelo.best_model_name  # Ej: "ARIMA", "Prophet"
+    params_mejor = autots_modelo.best_model_params
+    trans_mejor = autots_modelo.best_model_transformation_params
+    
+    # -------- GENERAR PRONÓSTICOS CON INTERVALOS --------
+    # Pronósticar horizonte meses, con límites inferior y superior
+    pronosticos = autots_modelo.predict(
+        forecast_length=horizonte,
+        prediction_interval=intervalo  # Intervalo de confianza
+    )
+    
+    # Extraer pronósticos y límites (PredictionObject tiene atributos)
+    valores_pronostico = pronosticos.forecast.values.flatten()
+    limites_inf = pronosticos.lower_forecast.values.flatten()
+    limites_sup = pronosticos.upper_forecast.values.flatten()
+    
+    # Crear fechas futuras para los pronósticos
+    fecha_siguiente = serie.index[-1] + pd.DateOffset(months=1)
+    fechas_pronostico = pd.date_range(start=fecha_siguiente, periods=horizonte, freq='MS')
+    
+    # Crear DataFrame de pronósticos
+    df_pronostico = pd.DataFrame({
+        'fecha': fechas_pronostico,
+        'pronostico_mm': valores_pronostico,
+        'limite_inferior_mm': limites_inf,
+        'limite_superior_mm': limites_sup
+    })
+    
+    # -------- OBTENER TOP 10 MODELOS --------
+    # Tabla de rankings (como tabla de resultados de una evaluación de variedades)
+    # Muestra los 10 mejores modelos según SMAPE (error porcentual)
+    resultados_validacion = autots_modelo.results("validation")
+    
+    # Seleccionar top 10 y renombrar columnas
+    top_10 = resultados_validacion.head(10)[['Model', 'smape', 'mae', 'rmse', 'Score']].copy()
+    top_10 = top_10.reset_index(drop=True)
+    
+    # -------- RETORNAR RESULTADO --------
+    return {
+        'pronostico': df_pronostico,
+        'modelo_nombre': nombre_mejor,
+        'modelo_params': params_mejor,
+        'modelo_transformaciones': trans_mejor,
+        'top_10_modelos': top_10,
+        'objeto_autots': autots_modelo
+    }
+
 
 if __name__ == "__main__":
     """

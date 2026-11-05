@@ -1,0 +1,20 @@
+{
+  "nombre_modelo": "GLS",
+  "parametros": "{'changepoint_spacing': 6, 'changepoint_distance_end': 360, 'constant': False}",
+  "transformaciones": "{'fillna': 'mean', 'transformations': {'0': 'MinMaxScaler', '1': 'Detrend', '2': 'SeasonalDifference'}, 'transformation_params': {'0': {}, '1': {'model': 'Linear', 'phi': 1, 'window': None, 'transform_dict': None}, '2': {'lag_1': 12, 'method': 20}}}",
+  "horizonte": 12,
+  "generaciones": 5,
+  "validaciones": 2,
+  "intervalo_confianza": 0.9,
+  "semilla": 995,
+  "codigo_estudiante": 6820995,
+  "datos": {
+    "observaciones": 132,
+    "fecha_inicio": "2015-01-01 00:00:00",
+    "fecha_fin": "2025-12-01 00:00:00",
+    "precip_min_mm": 20.79575517664693,
+    "precip_media_mm": 132.5503569150973,
+    "precip_max_mm": 367.24535505948353
+  },
+  "posicion_seasonal_naive": "No en top 10"
+}
