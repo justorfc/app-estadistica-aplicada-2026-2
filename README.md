@@ -197,6 +197,33 @@ Streamlit abrirá automáticamente la aplicación en `http://localhost:8501` en 
 
 ---
 
+## App en Línea
+
+### Despliegue en Streamlit Community Cloud
+
+La aplicación está disponible en línea en:
+
+🔗 **[Abre la App aquí](https://share.streamlit.io/justorfc/app-estadistica-aplicada-2026-2)** *(enlace a completar tras despliegue)*
+
+**Nota:** El despliegue en Streamlit Cloud es totalmente gratuito y automático. Cualquier cambio que hagas en el repositorio GitHub se despliega automáticamente en la app en línea.
+
+#### Para desplegar tu propia versión:
+
+1. **Crea una cuenta gratuita** en [Streamlit Community Cloud](https://share.streamlit.io)
+2. **Autoriza tu repositorio GitHub**
+3. **Conecta este repositorio** especificando:
+   - Repository: `justorfc/app-estadistica-aplicada-2026-2`
+   - Branch: `main`
+   - Main file: `app.py`
+
+Consulta la guía completa en **[GUIA_DESPLIEGUE_STREAMLIT_CLOUD.md](./GUIA_DESPLIEGUE_STREAMLIT_CLOUD.md)** para:
+- Preparar `runtime.txt` y `requirements.txt`
+- Manejar AutoTS en la nube (lentitud)
+- Resolver errores comunes
+- Monitoreo y mantenimiento
+
+---
+
 ## Metodología: El Lápiz y El Algoritmo
 
 Esta aplicación implementa la metodología **"El Lápiz y el Algoritmo"**, un enfoque pedagógico que equilibra:

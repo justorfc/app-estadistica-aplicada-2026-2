@@ -1,13 +1,17 @@
 [server]
 headless = true
-enableXsrfProtection = false
+enableXsrfProtection = true        # Seguridad: activar en Cloud
+maxUploadSize = 50                 # Limitar upload a 50 MB
 
 [client]
 showErrorDetails = true
 
 [theme]
-primaryColor = "#2ecc71"
+primaryColor = "#2ecc71"           # Verde
 backgroundColor = "#f0f2f6"
 secondaryBackgroundColor = "#e8eef2"
 textColor = "#1f1f1f"
 font = "sans serif"
+
+[logger]
+level = "info"
